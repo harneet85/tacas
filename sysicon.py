@@ -27,7 +27,8 @@ TACLOC = "./tac.sh"
 
 class Indicator():
     def __init__(self):
-        self.indicator = appindicator.Indicator.new(APPINDICATOR_ID, "go-down-symbolic", appindicator.IndicatorCategory.SYSTEM_SERVICES)
+        self.indicator = appindicator.Indicator.new(APPINDICATOR_ID, "tacasyellow", appindicator.IndicatorCategory.SYSTEM_SERVICES)
+	self.indicator.set_icon_theme_path("/home/harneet/things/icon/")
         self.indicator.set_status(appindicator.IndicatorStatus.ACTIVE)
         self.indicator.set_menu(self.build_menu())
         notify.init(APPINDICATOR_ID)
@@ -57,11 +58,16 @@ class Indicator():
         return menu
     
     def startTac(self, source):
-	global subtac
-#	os.system(TACLOC)
-	subtac=subprocess.Popen([TACLOC])
-	print(subtac)
-	print("------------out of tac------")
+	sasvpn=int(subprocess.check_output("netstat -al | grep -i sasvpn | grep -i establ|wc -l", shell=True))
+	if sasvpn>0:
+		global subtac
+	#	os.system(TACLOC)
+		subtac=subprocess.Popen([TACLOC])
+		print(subtac)
+		print("------------out of tac------")
+	else:
+		print("IBM VPN Tunnel not found . Activate IBM VPN first ")
+		self.indicator.set_icon("tacasred")
 
     def killTac(self, source):
         try: 
@@ -69,33 +75,31 @@ class Indicator():
 	except:
 		print("error while killing subprocess , maybe it does not exists")
         os.system("ps -ef| grep -i tac.sh | grep -v grep| awk '{print $2}'| xargs -I{} kill -9 {}")
+	a=int(subprocess.check_output("ps -ef| grep -i tac.sh| egrep -v 'grep|defunct'|wc -l|tr -s '\n' ' '", shell=True))
+	if a==0:
+		self.indicator.set_icon("tacasred")
 	print("--------printing any active tac script---------")
 	print(os.system("ps -ef| grep -i tac.sh"))
         print("------------out of Kill tac------")
 
-	
-    def change_green(self, source):
-        self.indicator.set_icon("starred-symbolic")
-
-    def change_red(self, source):
-#        self.indicator.set_icon("semi-starred-symbolic")
-	self.change_green(self)
-
     def checkTac(self,source):
 	while True:
-		print("inside loop ")
-		stat=os.stat("./tac.status")
-		mfiletime=int(stat.st_mtime/60)
-		currtime=int(time.time()/60)
-		difftime=currtime-mfiletime
-		print("time",currtime,mfiletime,difftime)
-		if difftime > 20 :
-			self.indicator.set_icon("non-starred-symbolic")
+		if os.path.isfile("tac.status"):
+			print("inside loop ")
+			stat=os.stat("./tac.status")
+			mfiletime=int(stat.st_mtime/60)
+			currtime=int(time.time()/60)
+			difftime=currtime-mfiletime
+			print("time",currtime,mfiletime,difftime)
+			if difftime > 20 :
+				self.indicator.set_icon("tacasred")
+			else:
+				self.indicator.set_icon("tacasgreen")
+			print("goging to sleep")
+			time.sleep(960)
+			print("out of sleep")
 		else:
-			self.indicator.set_icon("starred-symbolic")
-		print("goging to sleep")
-		time.sleep(960)
-		print("out of sleep")
+			self.indicator.set_icon("tacasred")
 
     def threadFunc(self,source):
 	x = threading.Thread(target=self.checkTac, args=(1,))
